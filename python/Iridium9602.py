@@ -488,7 +488,7 @@ def parse_cmd(cmd):
     
 
 def open_port(dev,baudrate):
-    ser = serial.Serial(dev, 19200, timeout=.1, parity=serial.PARITY_NONE)
+    ser = serial.Serial(dev, 19200, timeout=.1, parity=serial.PARITY_NONE, dsrdtr=True,rtscts=True)
     return ser
 
 class MobileTerminatedHandler(asyncore.dispatcher_with_send):

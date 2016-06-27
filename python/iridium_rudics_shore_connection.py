@@ -3,6 +3,8 @@ from optparse import OptionParser
 import socket
 import time
 
+one_way_latency = 1
+
 def close_hayes_socket(hayes_socket):
     hayes_socket.send("+++");        
     time.sleep(2)
@@ -36,6 +38,7 @@ def main():
                 try:
                     shore_data = shore_socket.recv(buffer_size)
                     if(len(shore_data) > 0):
+                        time.sleep(one_way_latency)
                         hayes_socket.send(shore_data)
                     else:
                         print "Zero read"
@@ -59,6 +62,7 @@ def main():
             if connected and len(data) > 0:
                 try:
                     print "To Shore: ",data.encode("hex")
+                    time.sleep(one_way_latency)
                     shore_socket.send(data)
                 except socket.timeout:
                     print "Timeout sending data"
