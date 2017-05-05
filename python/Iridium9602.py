@@ -39,7 +39,7 @@ echo = True
 binary_rx = False
 binary_rx_incoming_bytes = 0
 
-ring_enable = False
+ring_enable = True
 
 mt_buffer = ''
 mo_buffer = ''
@@ -518,6 +518,8 @@ class MobileTerminatedHandler(asyncore.dispatcher_with_send):
             mt_packet = None
             try: 
                 mt_packet = parse_mt_directip_packet(self.data, mt_messages)
+                if ring_enable:
+                    ser.write("SBDRING")
             except:
                 print 'MT Handler: Invalid message'
             # response message
@@ -633,8 +635,8 @@ def main():
         ser = open_port(options.dev,19200)
     except:
         print "Could not open serial port.  Exiting."
-#        print "FYI - Here's a list of ports on your system."
-#        print list_serial_ports()
+        print "FYI - Here's a list of ports on your system."
+        print list_serial_ports()
         sys.exit()
     
     rx_buffer = ''
