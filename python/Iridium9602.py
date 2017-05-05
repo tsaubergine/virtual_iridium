@@ -464,6 +464,7 @@ def parse_cmd(cmd):
     elif cmd_type == 'at+sbdwb'     : write_binary_start(cmd,index + 1)
     elif cmd_type == 'at+sbdi'      : sbdi()
     elif cmd_type == 'at+sbdix'     : sbdix()
+    elif cmd_type == 'at+sbdixa'    : sbdix()
     elif cmd_type == 'at+sbdreg'    : sbd_reg()
     elif cmd_type == 'at+sbdreg?'   : check_reg_status()
     elif cmd_type == 'at+sbddet'    : sbd_det()
@@ -519,7 +520,7 @@ class MobileTerminatedHandler(asyncore.dispatcher_with_send):
             try: 
                 mt_packet = parse_mt_directip_packet(self.data, mt_messages)
                 if ring_enable:
-                    ser.write("SBDRING")
+                    ser.write("\r\nSBDRING\r\n")
             except:
                 print 'MT Handler: Invalid message'
             # response message
