@@ -9,6 +9,7 @@ import socket
 from virtual_iridium.sbd_packets import parse_mt_directip_packet
 from collections import deque
 import struct
+from optparse import OptionParser
 
 # this script listens (binds) on this port
 mt_sbd_address = '0.0.0.0'
@@ -69,7 +70,7 @@ class ConditionalSBDForwardHandler(asyncore.dispatcher_with_send):
             print 'Attempting to forward message for imei: {}' .format(imei)
 
             if forward_address.has_key(imei):
-                self.client = ConditionalSBDForwardClient(self, forward_address[imei][0], forward_address[imei][1])
+                self.client = ConditionalSBDForwardClient(self, options.forward_address, forward_address[imei][1])
                 self.client.send(self.data)
                 self.data = ''
             else:
@@ -105,6 +106,13 @@ class ConditionalSBDForwardServer(asyncore.dispatcher):
             print "Unexpected error:", sys.exc_info()[0]
             
 import sys
+
+
+parser = OptionParser()
+parser.add_option("-a", "--forward_address", dest="forward_address", action="store", help="address to forward to", default="127.0.0.1")
+(options, args) = parser.parse_args()
+
+
 print "Iridium SBD Port forwarder starting up ..."
 print "Listening for SBD on port: %d" % mt_sbd_port
 
