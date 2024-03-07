@@ -1,12 +1,12 @@
 import os
 import smtplib
 import mimetypes
-from email.MIMEMultipart import MIMEMultipart
-from email.MIMEBase import MIMEBase
-from email.MIMEText import MIMEText
-from email.MIMEAudio import MIMEAudio
-from email.MIMEImage import MIMEImage
-from email.Encoders import encode_base64
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email.mime.text import MIMEText
+from email.mime.audio import MIMEAudio
+from email.mime.image import MIMEImage
+from email import encoders
 
 def sendMail(subject, text, user, recipient, password, smtp_server, attachmentFilePath):
     gmailUser = user
@@ -16,10 +16,11 @@ def sendMail(subject, text, user, recipient, password, smtp_server, attachmentFi
     msg['From'] = 'sbdservice@sbd.iridium.com'
     msg['To'] = recipient
     msg['Subject'] = subject
-    msg.attach(MIMEText(text))
+    msg.attach(MIMEText(text, 'plain'))
 
-
-    msg.attach(getAttachment(attachmentFilePath))
+    attachment = getAttachment(attachmentFilePath)
+    if attachment:
+        msg.attach(attachment)
 
     mailServer = smtplib.SMTP(smtp_server, 587)
     mailServer.ehlo()
@@ -38,24 +39,17 @@ def getAttachment(attachmentFilePath):
         contentType = 'application/octet-stream'
 
     mainType, subType = contentType.split('/', 1)
-    file = open(attachmentFilePath, 'rb')
+    with open(attachmentFilePath, 'rb') as file:
+        if mainType == 'text':
+            attachment = MIMEText(file.read().decode(), _subtype=subType)
+        elif mainType == 'image':
+            attachment = MIMEImage(file.read(), _subtype=subType)
+        elif mainType == 'audio':
+            attachment = MIMEAudio(file.read(), _subtype=subType)
+        else:
+            attachment = MIMEBase(mainType, subType)
+            attachment.set_payload(file.read())
+            encoders.encode_base64(attachment)
 
-    if mainType == 'text':
-        attachment = MIMEText(file.read())
-    elif mainType == 'message':
-        attachment = email.message_from_file(file)
-    elif mainType == 'image':
-        attachment = MIMEImage(file.read(),_subType=subType)
-    elif mainType == 'audio':
-        attachment = MIMEAudio(file.read(),_subType=subType)
-    else:
-        attachment = MIMEBase(mainType, subType)
-        attachment.set_payload(file.read())
-        encode_base64(attachment)
-
-    file.close()
-
-    attachment.add_header('Content-Disposition', 'attachment',   filename=os.path.basename(attachmentFilePath))
-    return attachment
-    
-
+        attachment.add_header('Content-Disposition', 'attachment', filename=os.path.basename(attachmentFilePath))
+        return attachment

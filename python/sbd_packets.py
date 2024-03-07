@@ -50,7 +50,7 @@ def parse_mt_directip_packet(buffer, mt_messages):
 
     while parse_offset + struct.calcsize(ie_header_fmt) < len(buffer):
         ie_header = struct.unpack_from(ie_header_fmt, buffer, parse_offset)
-        print 'IE Header: ' + str(ie_header)
+        print('IE Header: ' + str(ie_header))
         parse_offset += struct.calcsize(ie_header_fmt)
 
         if ie_header[0] == header_iei:
@@ -62,7 +62,7 @@ def parse_mt_directip_packet(buffer, mt_messages):
             # MT Disposition Flags char    unsigned short
             header_fmt = '!I15sH'
             header = struct.unpack_from(header_fmt, buffer, parse_offset)
-            print 'Header: ' + str(header)
+            print('Header: ' + str(header))
         elif ie_header[0] == payload_iei:
             # ==== MT PAYLOAD ====
             # MO Payload IEI         char               2
@@ -70,10 +70,10 @@ def parse_mt_directip_packet(buffer, mt_messages):
             # MO Payload             char 
             payload_fmt = str(ie_header[1]) + 's'
             payload = struct.unpack_from(payload_fmt, buffer, parse_offset)
-            print 'Payload: ' + str(payload)
+            print('Payload: ' + str(payload))
             mt_messages.append(payload[0])
         else:
-            print 'Unknown IEI: %x'.format(ie_header[0])
+            print('Unknown IEI: %x'.format(ie_header[0]))
             
         parse_offset += ie_header[1]
     return (header, payload)
@@ -87,7 +87,7 @@ def assemble_mt_directip_response(mt_packet, mt_messages):
     client_id = 0
     imei = '0'*15
     if mt_packet[0] is not None:
-        print mt_packet
+        print(mt_packet)
         session_status = len(mt_messages)
         client_id = mt_packet[0][0]
         imei = mt_packet[0][1]
