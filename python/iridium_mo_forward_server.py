@@ -70,9 +70,9 @@ class ConditionalForwardHandler(asyncore.dispatcher_with_send):
             self.hayes_client.send(line_cr)
             self.sbd_client.send(line_cr)
         else:
-            if len(line) >= 6 and line_stripped[2:6].upper() == b"+SBD":
+            if (len(line_stripped) >= 6 and line_stripped[2:6].upper() == b"+SBD") or (len(line_stripped) >= 7 and line_stripped[2:7].upper() == b"+CIER"):
                 self.sbd_client.send(line_cr)
-                if len(line) >= 8 and line_stripped[2:8].upper() == b"+SBDWB":
+                if len(line_stripped) >= 8 and line_stripped[2:8].upper() == b"+SBDWB":
                     parts = line.split(b'=')
                     self.sbd_bytes_remaining = int(parts[1]) + 2  # 2 checksum bytes
                     self.sbd_write = True

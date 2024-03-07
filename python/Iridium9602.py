@@ -343,15 +343,23 @@ def get_system_time():
     send_ok()
     print('We havent actually implemented MSSTM this yet.')
     
+def set_auto_reg(cmd,start_index):
+    send_ok()
+    print('Warning: set_auto_reg function not implemented')
+    
 def set_ring_indicator(cmd,start_index):
     global ring_enable
 
     text = cmd[start_index:len(cmd)-1]
     
     if len(text) == 1:
-        if text[0] == '0':
+        if text == b'0':
+            print("Setting ring alerts false")
+            ring_enable = False
             send_ok()
-        elif text[0] == '1':
+        elif text == b'1':
+            print("Setting ring alerts true")
+            ring_enable = True
             send_ok()
         else:
             send_error()
@@ -397,6 +405,11 @@ def get_gmr():
     print('Warning: get_gmr function not fully implemented')
     ser.write(return_string)
     send_ok() 
+
+def set_cier():
+    print('Warning: set_cier function not implemented')
+    send_ok() 
+    
     
 def write_binary_start(cmd,start_index):
     global binary_rx_incoming_bytes
@@ -425,8 +438,6 @@ def parse_cmd(cmd):
         index = cmd.find(b'\r')
     cmd_type = cmd[0:index].lower()
     
-    print(cmd_type)
-    
     if cmd_type == b'at' : do_ok()
     elif cmd_type == b'at+csq'       : get_signal_strength()
     elif cmd_type == b'at+csq=?'     : get_valid_rssi()
@@ -454,14 +465,16 @@ def parse_cmd(cmd):
     elif cmd_type == b'at+sbdgw'     : which_gateway()
     elif cmd_type == b'at-msstm'     : get_system_time()
     elif cmd_type == b'at+sbdmta'    : set_ring_indicator(cmd,index + 1)
+    elif cmd_type == b'at+sbdareg'   : set_auto_reg(cmd,index + 1)
     elif cmd_type == b'ate0' or cmd_type == b'ate': 
         echo = False
-        do_ok()
+        send_ok()
     elif cmd_type == b'ate1':
         echo = true
-        do_ok()
-    elif cmd_type == b'at&d0'    : do_ok()
-    elif cmd_type == b'at&k0'    : do_ok()
+        send_ok()
+    elif cmd_type == b'at&d0'    : send_ok()
+    elif cmd_type == b'at&k0'    : send_ok()
+    elif cmd_type == b'at+cier'    : set_cier()
     else : send_error()
     
 
