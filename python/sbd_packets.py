@@ -19,7 +19,7 @@ def assemble_mo_directip_packet(imei, momsn, mtmsn, mo_buffer):
     header_length = struct.calcsize(header_fmt) - struct.calcsize('!bH')
     cdr_ref = random.getrandbits(32)
     session_status = 0
-    header = struct.pack(header_fmt, header_iei, header_length, cdr_ref, str(imei), session_status, momsn, mtmsn, int(time.time()))
+    header = struct.pack(header_fmt, header_iei, header_length, cdr_ref, str(imei).encode(), session_status, momsn, mtmsn, int(time.time()))
 
     # ==== MO PAYLOAD ====
     # MO Payload IEI         char               0x02
