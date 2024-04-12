@@ -227,11 +227,11 @@ def read_text():
 
 def read_binary():
     global mt_buffer
-    len_msb = ( len(mt_buffer)/256 ) & 255 
-    len_lsb = ( len(mt_buffer)/1 ) & 255 
+    len_msb = int(len(mt_buffer)/256) & 255 
+    len_lsb = int(len(mt_buffer)/1) & 255 
     mt_buffer_sum = sum(bytearray(mt_buffer)) 
-    checksum_msb =  ((mt_buffer_sum & (2**16-1)) / (255) ) & 255
-    checksum_lsb =  ((mt_buffer_sum & (2**16-1)) / (1) ) & 255
+    checksum_msb =  int((int(mt_buffer_sum) & (2**16-1)) / (255) ) & 255
+    checksum_lsb =  int((int(mt_buffer_sum) & (2**16-1)) / (1) ) & 255
     print("Device is reading binary from MT buffer: ",mt_buffer)
     #array.array
     #ser.write(len_msb)
@@ -239,8 +239,8 @@ def read_binary():
     #ser.write(mt_buffer)
     #ser.write(checksum_msb)
     #ser.write(checksum_lsb)
-    ser.write(b"%s%s%s%s%s" % (chr(len_msb), chr(len_lsb), mt_buffer,chr(checksum_msb),chr(checksum_lsb)) )
-    print("\r\n%s%s%s%s%s" % (chr(len_msb), chr(len_lsb), mt_buffer,chr(checksum_msb),chr(checksum_lsb)))
+    ser.write(b"%c%c%s%c%c" % (len_msb, len_lsb, mt_buffer, checksum_msb, checksum_lsb) )
+    print("\r\n%c%c%s%c%c" % (len_msb, len_lsb, mt_buffer,checksum_msb,checksum_lsb))
     print(checksum_msb, checksum_lsb, len_msb, len_lsb, mt_buffer)
     send_ok()
     
@@ -487,7 +487,7 @@ class MobileTerminatedHandler(asyncore.dispatcher_with_send):
         asyncore.dispatcher_with_send.__init__(self, sock)
         self.client = None
         self.addr = addr
-        self.data = ""
+        self.data = b""
         self.msg_length = 0
         self.preheader_fmt = '!bH'
         self.preheader_size = struct.calcsize(self.preheader_fmt)
@@ -503,7 +503,7 @@ class MobileTerminatedHandler(asyncore.dispatcher_with_send):
             self.data += self.recv(self.msg_length)
         
         print(self.msg_length)
-        print(self.data.encode("hex"))
+        print(self.data.hex())
             
         if len(self.data) >= self.msg_length:
             mt_packet = None
