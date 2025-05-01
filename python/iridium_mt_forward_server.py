@@ -9,21 +9,8 @@ import socket
 from virtual_iridium.sbd_packets import parse_mt_directip_packet
 from collections import deque
 import struct
-from optparse import OptionParser
+import argparse
 import sys
-
-# this script listens (binds) on this port
-mt_sbd_address = '0.0.0.0'
-mt_sbd_port = 40002
-
-# maps imei to address and port
-forward_address = {
-    b"300234060379270": ("127.0.0.1", 40010),
-    b"300234060379271": ("127.0.0.1", 40011),
-    b"300234060379272": ("127.0.0.1", 40012),
-    b"300234060379273": ("127.0.0.1", 40013),
-    b"300234060379274": ("127.0.0.1", 40014)
-}
 
 class ConditionalSBDForwardClient(asyncore.dispatcher_with_send):
 
@@ -76,6 +63,7 @@ class ConditionalSBDForwardHandler(asyncore.dispatcher_with_send):
 
             if imei in forward_address:
                 host, port = forward_address[imei]
+                print('Forwarding to: {}:{}'.format(host, port))
                 self.client = ConditionalSBDForwardClient(self, host, port)
                 self.client.send(self.data)
                 self.data = b''
@@ -110,11 +98,30 @@ class ConditionalSBDForwardServer(asyncore.dispatcher):
             except:
                 print("Unexpected error:", sys.exc_info()[0])
 
-parser = OptionParser()
-parser.add_option("-a", "--forward_address", dest="forward_address", action="store", help="address to forward to", default="127.0.0.1")
-(options, args) = parser.parse_args()
 
-print("Iridium SBD Port forwarder starting up ...")
+def parse_forward_argument(forward_arg):
+    try:
+        imei, ip, port = forward_arg.split(":")
+        return imei.encode(), (ip, int(port))
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"Invalid format for --forward: {forward_arg}. Expected format: IMEI:IP:PORT")
+    
+    
+parser = argparse.ArgumentParser(description='Iridium MT Forward Server', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("-f", "--forward", help="Tuple of (IMEI:IP Address:Port) of Iridium9602 simulator", action="append", type=parse_forward_argument)
+parser.add_argument("-b", "--bind_port", help="Port to bind (mimics 10800 in directip.sbd.iridium.com)", default=40002, type=int)
+args = parser.parse_args()
+
+# this script listens (binds) on this port
+mt_sbd_address = '0.0.0.0'
+mt_sbd_port = args.bind_port
+
+# maps imei to address and port                    
+forward_address = dict(args.forward or [])
+
+print(f"Forwarding to: {forward_address}")
+
+print("Iridium SBD MT Port forwarder starting up ...")
 print("Listening for SBD on port: {}".format(mt_sbd_port))
 sys.stdout.flush()
 

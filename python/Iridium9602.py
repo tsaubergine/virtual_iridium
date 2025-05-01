@@ -67,7 +67,7 @@ mo_ip = '127.0.0.1'
 mo_port = 10801
 mt_port = 10800
 
-imei = 300234060379270
+imei = "300234060379270"
 
 email_enabled = False
 ip_enabled = False
@@ -93,7 +93,7 @@ Message is Attached.'\
     % (momsn, mtmsn, time.asctime(), len(mo_buffer), lat, lon)
             
     #subject
-    subject = 'SBD Msg From Unit: %d' % (imei)
+    subject = 'SBD Msg From Unit: %s' % (imei)
             
     #message is included as an attachment
     attachment = 'text.sbd'
@@ -395,8 +395,9 @@ def get_model():
     ser.write(return_string)
     send_ok() 
     
-def get_gsn():
-    return_string = b"\n300234060604220\r\n"
+def get_imei():
+    global imei
+    return_string = b"\n%s\r\n" % imei.encode()
     ser.write(return_string)
     send_ok() 
     
@@ -443,8 +444,11 @@ def parse_cmd(cmd):
     elif cmd_type == b'at+csq=?'     : get_valid_rssi()
     elif cmd_type == b'at+culk?'     : get_lock_status()
     elif cmd_type == b'at+gmi'       : get_manufacturer()
+    elif cmd_type == b'at+cgmi'       : get_manufacturer()
     elif cmd_type == b'at+gmm'       : get_model()
-    elif cmd_type == b'at+gsn'       : get_gsn()
+    elif cmd_type == b'at+cgmm'       : get_model()
+    elif cmd_type == b'at+gsn'       : get_imei() 
+    elif cmd_type == b'at+cgsn'      : get_imei()
     elif cmd_type == b'at+gmr'       : get_gmr()
     elif cmd_type == b'at+sbdwt'     : write_text(cmd,index + 1)
     elif cmd_type == b'at+sbdwb'     : write_binary_start(cmd,index + 1)
@@ -473,8 +477,11 @@ def parse_cmd(cmd):
         echo = true
         send_ok()
     elif cmd_type == b'at&d0'    : send_ok()
+    elif cmd_type == b'at&d2'    : send_ok()
+    elif cmd_type == b'atq0'    : send_ok() 
     elif cmd_type == b'at&k0'    : send_ok()
     elif cmd_type == b'at+cier'    : set_cier()
+    elif cmd_type == b'at+ipr'    : send_ok()
     else : send_error()
     
 
@@ -550,6 +557,7 @@ def main():
     global ser, mo_buffer, mo_set, binary_rx_incoming_bytes, binary_rx
     global user, recipient, incoming_server, outgoing_server, password
     global email_enabled, ip_enabled, http_post_enabled, mo_ip, mo_port, mt_port, echo
+    global imei
 
     parser = OptionParser()
     parser.add_option("-d", "--dev", dest="dev", action="store", help="tty dev(ex. '/dev/ttyUSB0'", metavar="DEV")
