@@ -20,6 +20,11 @@ AVERAGE_SBDIX_DELAY = 1     #TODO: implement randomness, average is ~30s
 STDEV_SBDIX_DELAY = 1 
 AVERAGE_SBDIX_SUCCESS = 0.9
 
+# MO status 18: Connection lost (RF drop)
+SBDIX_FAILURE_MO_STATUS = 18
+# MT status 2: An error occurred while attempting to perform a mailbox check or receive a message from the GSS
+SBDIX_FAILURE_MT_STATUS = 2
+
 AVERAGE_CSQ_DELAY = 1
 STDEV_CSQ_DELAY = 1
 
@@ -74,6 +79,10 @@ ip_enabled = False
 http_post_enabled = False
 
 mt_messages = deque()
+
+signal_strength = 5
+sbdix_failure_rate = 0.0
+sbd_session_timeout = 0
 
 def send_mo_email():
     global lat, lon, mo_buffer, momsn, mtmsn, user, recipient, password, outgoing_server, imei
@@ -135,7 +144,7 @@ def sbdix():
     received_msg_size = 0
     unread_msgs = 0
     time.sleep(AVERAGE_SBDIX_DELAY)
-    success = True#(bool(random.getrandbits(1)))
+    success = signal_strength > 0 and random.random() >= sbdix_failure_rate
 
 
     if success:
@@ -180,17 +189,23 @@ def sbdix():
                 received_msg = mt_set
                 received_msg_size = len(mt_buffer)
 
-    #TODO: generate result output
-    if success: rpt = 0
-    else: rpt = 18 #TODO: add more sophisticated behavior for error msgs
-    
-    return_string = b"\r\n+SBDIX: %d, %d, %d, %d, %d, %d\r\n" % (rpt,momsn,received_msg,mtmsn,received_msg_size,unread_msgs)
+    if success:
+        rpt = 0
+        mt_status = 1 if received_msg else 0
+    else:
+        rpt = SBDIX_FAILURE_MO_STATUS
+        mt_status = SBDIX_FAILURE_MT_STATUS
+        unread_msgs = len(mt_messages)
+
+    return_string = b"\r\n+SBDIX: %d, %d, %d, %d, %d, %d\r\n" % (rpt,momsn,mt_status,mtmsn,received_msg_size,unread_msgs)
     #+SBDIX:<MO status>,<MOMSN>,<MT status>,<MTMSN>,<MT length>,<MT queued>
     print("Sent:",return_string)
     ser.write(return_string)
     send_ok()
-        
-    mo_set = False
+
+    # the MO buffer is kept after a failed session, as on the real modem
+    if success:
+        mo_set = False
     if received_msg:
         mtmsn += 1
 def sbd_reg():
@@ -230,8 +245,8 @@ def read_binary():
     len_msb = int(len(mt_buffer)/256) & 255 
     len_lsb = int(len(mt_buffer)/1) & 255 
     mt_buffer_sum = sum(bytearray(mt_buffer)) 
-    checksum_msb =  int((int(mt_buffer_sum) & (2**16-1)) / (255) ) & 255
-    checksum_lsb =  int((int(mt_buffer_sum) & (2**16-1)) / (1) ) & 255
+    checksum_msb = (mt_buffer_sum >> 8) & 255
+    checksum_lsb = mt_buffer_sum & 255
     print("Device is reading binary from MT buffer: ",mt_buffer)
     #array.array
     #ser.write(len_msb)
@@ -368,7 +383,7 @@ def set_ring_indicator(cmd,start_index):
 
     
 def get_signal_strength():
-    return_string = b"\r\n+CSQ:%d\r\n" % 5#(random.randint(0,5))
+    return_string = b"\r\n+CSQ:%d\r\n" % signal_strength
     time.sleep(AVERAGE_SBDIX_DELAY)
     ser.write(return_string)
     send_ok()
@@ -410,6 +425,30 @@ def get_gmr():
 def set_cier():
     print('Warning: set_cier function not implemented')
     send_ok() 
+
+def get_sbdloe():
+    # status 0 (time valid), 0 s left of any traffic management period
+    ser.write(b"\r\n+SBDLOE:0,0\r\n")
+    send_ok()
+
+def set_sbd_session_timeout(cmd,start_index):
+    global sbd_session_timeout
+
+    text = cmd[start_index:len(cmd)-1]
+    try:
+        sbd_session_timeout = int(text)
+        print('SBD session timeout set to {} s'.format(sbd_session_timeout))
+        send_ok()
+    except ValueError:
+        send_error()
+
+def get_sbd_session_timeout():
+    ser.write(b"\r\n+SBDST:%d\r\n" % sbd_session_timeout)
+    send_ok()
+
+def flush_to_eeprom():
+    print('Flushed to EEPROM: the real modem now stops responding until it is power cycled')
+    send_ok()
     
     
 def write_binary_start(cmd,start_index):
@@ -482,6 +521,10 @@ def parse_cmd(cmd):
     elif cmd_type == b'at&k0'    : send_ok()
     elif cmd_type == b'at+cier'    : set_cier()
     elif cmd_type == b'at+ipr'    : send_ok()
+    elif cmd_type == b'at+sbdloe'    : get_sbdloe()
+    elif cmd_type == b'at+sbdst'     : set_sbd_session_timeout(cmd,index + 1)
+    elif cmd_type == b'at+sbdst?'    : get_sbd_session_timeout()
+    elif cmd_type == b'at*f'    : flush_to_eeprom()
     else : send_error()
     
 
@@ -557,7 +600,7 @@ def main():
     global ser, mo_buffer, mo_set, binary_rx_incoming_bytes, binary_rx
     global user, recipient, incoming_server, outgoing_server, password
     global email_enabled, ip_enabled, http_post_enabled, mo_ip, mo_port, mt_port, echo
-    global imei
+    global imei, signal_strength, sbdix_failure_rate
 
     parser = OptionParser()
     parser.add_option("-d", "--dev", dest="dev", action="store", help="tty dev(ex. '/dev/ttyUSB0'", metavar="DEV")
@@ -572,7 +615,13 @@ def main():
     parser.add_option("-m", "--mode", dest="mode", action="store", help="Mode: EMAIL,HTTP_POST,IP,NONE", default="NONE", metavar="MODE")
     parser.add_option("-e", "--imei", dest="imei", action="store", help="IMEI for this modem", default="300234060379270", metavar="MODE")
 
+    parser.add_option("--csq", dest="csq", action="store", type="int", help="Signal strength reported by +CSQ (0-5). 0 also makes every SBD session fail", default=5, metavar="CSQ")
+    parser.add_option("--sbdix_failure_rate", dest="sbdix_failure_rate", action="store", type="float", help="Probability (0-1) that an SBD session (+SBDIX) fails with MO status 18", default=0.0, metavar="RATE")
+
     (options, args) = parser.parse_args()
+
+    signal_strength = options.csq
+    sbdix_failure_rate = options.sbdix_failure_rate
 
     mt_port = int(options.mt_port)
     
